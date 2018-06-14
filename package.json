@@ -1,5 +1,5 @@
 {
-    "name": "anydoor",
+    "name": "hx-anydoor",
     "version": "0.1.0",
     "description": "tiny nodejs web server",
     "main": "src/app.js",
