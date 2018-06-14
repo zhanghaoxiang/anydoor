@@ -5,21 +5,28 @@ const promisify = require('util').promisify;
 const stat = promisify(fs.stat);
 const readdir = promisify(fs.readdir);
 
-const mimeFn = require('../components/mime')
-const compressFn = require('../components/compress')
-const rangeFn = require('../components/range')
+const mimeFn = require('../components/mime');
+const compressFn = require('../components/compress');
+const rangeFn = require('../components/range');
+const isFresh = require('../components/cache');
 
 const tplPath = path.join(__dirname, '../tpl/dir.tpl');
 const source = fs.readFileSync(tplPath);
 const tpl = Handlebars.compile(source.toString());
-const cfg = require('../config/defaultConfig');
 
-const statFn = async (req, res, filePath) =>{
+const statFn = async (req, res, filePath, cfg) =>{
     try {
         const stats = await stat(filePath)
         if (stats.isFile()) {
             const contentType = mimeFn(filePath)
             let rs;
+
+            if(isFresh(stats, req, res)) {
+                res.statusCode = 304;
+                res.end()
+                return
+            }
+
             const {code, start, end} = rangeFn(stats.size, req, res)
 
             if (code === 200) {
@@ -46,9 +53,6 @@ const statFn = async (req, res, filePath) =>{
                     icon: mimeFn(file)
                 }))
             }
-            console.log('filePatg：'+filePath+ '\n');
-            console.log('cfg.root: '+cfg.root+ '\n');
-            console.log('dir: ' + dir + '\n');
             res.statusCode = 200;
             res.setHeader('Content-Type', 'text/html');
             res.end(tpl(data))
@@ -56,6 +60,7 @@ const statFn = async (req, res, filePath) =>{
     } catch(err) {
         res.statusCode = 404;
         res.setHeader('Content-Type', 'text/plain');
+        console.log(err)
         res.end(`${filePath} is not a directory or file\n ${err}`)
     }
 }
